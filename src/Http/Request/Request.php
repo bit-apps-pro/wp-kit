@@ -197,6 +197,10 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
 
     public function validate($rules, $messages = null, $attributeLabels = null)
     {
+        if (\count($this->files()) > 0) {
+            $this->attributes = array_merge($this->attributes, $this->files());
+        }
+
         $validator = $this->make($this->attributes, $rules, $messages, $attributeLabels);
 
         if ($validator->fails()) {
