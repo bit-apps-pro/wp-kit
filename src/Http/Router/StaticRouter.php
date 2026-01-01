@@ -91,7 +91,7 @@ class StaticRouter
 
     public function renderContent(string $content): string
     {
-        return $content . $this->content ?? $content;
+        return $content . ($this->content ?? '');
     }
 
     public function loadRoutesFromFile($filePath)
@@ -99,7 +99,7 @@ class StaticRouter
         $this->router->registerFile($filePath);
     }
 
-    public function getRouter()
+    public function getRouter(): Router
     {
         return $this->router;
     }
