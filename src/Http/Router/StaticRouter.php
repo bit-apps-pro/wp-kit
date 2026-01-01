@@ -82,6 +82,11 @@ class StaticRouter
             }
             if ($this->isRouteMatched($path, $requestPath)) {
                 $this->setRouteParameters($route, $requestPath);
+                /**
+                 * this filter needs to be added here to avoid affecting other routes
+                 */
+                add_filter('the_content', [$this, 'renderContent']);
+                
                 $this->content = $route->handleRequest();
 
                 return;
@@ -142,7 +147,6 @@ class StaticRouter
         add_action($this->deactivationHook, [$this, 'flushOnActivate']);
         add_action('init', [$this, 'registerRewriteRules']);
         add_action('query_vars', [$this, 'addQueryVars']);
-        add_filter('the_content', [$this, 'renderContent']);
         add_action('template_redirect', [$this, 'handleRequest']);
     }
 
