@@ -74,7 +74,7 @@ class StaticRouter
              *
              * @var RouteRegister $route
              */
-            $path = '/' . $pageName . '/' . $route->getPath();
+            $path = '/' . $pageName . '/' . trim($route->getPath(), '/');
             $prefix = $route->getRoutePrefix();
 
             if ($prefix) {
@@ -91,7 +91,6 @@ class StaticRouter
 
     public function renderContent()
     {
-
         return $this->content ?? '';
     }
 
