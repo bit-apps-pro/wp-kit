@@ -89,9 +89,9 @@ class StaticRouter
         }
     }
 
-    public function renderContent()
+    public function renderContent(string $content): string
     {
-        return $this->content ?? '';
+        return $content . $this->content ?? $content;
     }
 
     public function loadRoutesFromFile($filePath)
