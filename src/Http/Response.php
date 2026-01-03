@@ -142,7 +142,7 @@ final class Response
     /**
      * Sets http status code for response.
      *
-     * @param string $code http status code to return on response
+     * @param int $code http status code to return on response
      *
      * @return self
      */
