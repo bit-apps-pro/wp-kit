@@ -1,6 +1,6 @@
 <?php
 
-namespace BitApps\BitConnect\Providers;
+namespace BitApps\WPKit\Http\Router;
 
 use BitApps\WPKit\Http\Router\Router;
 use BitApps\WPKit\Http\Router\RouteRegister;
