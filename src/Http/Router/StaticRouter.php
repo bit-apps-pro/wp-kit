@@ -74,19 +74,17 @@ class StaticRouter
              *
              * @var RouteRegister $route
              */
-            $path = '/' . $pageName . '/' . trim($route->getPath(), '/');
             $prefix = $route->getRoutePrefix();
-
+            $path = $pageName . '/' . $prefix;
+            $path = '/' . trim($path, '/') . '/' . trim($route->getPath(), '/');
             if ($prefix) {
                 $path = $prefix . '/' . $path;
             }
             if ($this->isRouteMatched($path, $requestPath)) {
                 $this->setRouteParameters($route, $requestPath);
-                /**
-                 * this filter needs to be added here to avoid affecting other routes
-                 */
+                // this filter needs to be added here to avoid affecting other routes
                 add_filter('the_content', [$this, 'renderContent']);
-                
+
                 $this->content = $route->handleRequest();
 
                 return;
@@ -198,9 +196,8 @@ class StaticRouter
             return;
         }
 
-        $regex = '~^' . preg_replace('/\{(\w+)\}/', '([^/]+)', $cleanPath) . '~';
-
-        if (preg_match($regex, $requestPath, $matchedValues)) {
+        $regex = '~^' . trim($this->pageName, '/') . '/' . preg_replace('/\{(\w+)\}/', '([^/]+)', $cleanPath) . '~';
+        if (preg_match($regex, trim($requestPath, '/'), $matchedValues)) {
             // Skip the full match at index 0
             array_shift($matchedValues);
 
