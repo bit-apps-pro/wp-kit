@@ -7,7 +7,7 @@ use RuntimeException;
 /**
  * A forwarder class for actions and filters.
  *
- * @method static mixed doAction($tag, ...$arg)
+ * @method static void  doAction($tag, ...$arg)
  * @method static true  addAction($tag, callable $functionToAdd, $priority = 10, $acceptedArgs = 1)
  * @method static bool  removeAction($tag, callable $functionToRemove, $priority = 10)
  * @method static true  addFilter($tag, callable $functionToAdd, $priority = 10, $acceptedArgs = 1)
