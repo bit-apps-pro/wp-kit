@@ -14,11 +14,11 @@ final class HooksWrapper
      * @param mixed  $arg Optional. Additional arguments which
      *                    are passed on to the functions hooked to the action. Default empty.
      *
-     * @return mixed
+     * @return void
      */
     public function doAction($tag, ...$arg)
     {
-        return do_action($tag, ...$arg);
+        do_action($tag, ...$arg);
     }
 
     /**
