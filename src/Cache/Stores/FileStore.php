@@ -101,7 +101,7 @@ final class FileStore implements Store
     /**
      * @inheritDoc
      */
-    public function increment(string $key, int $by = 1)
+    public function increment(string $key, int $by = 1): int
     {
         $entry = $this->read($key);
         $new   = (int) ($entry['value'] ?? 0) + $by;
@@ -115,7 +115,7 @@ final class FileStore implements Store
     /**
      * @inheritDoc
      */
-    public function decrement(string $key, int $by = 1)
+    public function decrement(string $key, int $by = 1): int
     {
         return $this->increment($key, -$by);
     }

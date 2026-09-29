@@ -13,14 +13,11 @@ use BitApps\WPKit\Cache\Contracts\Store;
  */
 final class TransientStore implements Store
 {
-    private string $prefix;
-
     /**
      * @param string $prefix prepended to every transient name to namespace this store's keys
      */
-    public function __construct(string $prefix = '')
+    public function __construct(private string $prefix = '')
     {
-        $this->prefix = $prefix;
     }
 
     /**
@@ -80,7 +77,7 @@ final class TransientStore implements Store
     /**
      * @inheritDoc
      */
-    public function increment(string $key, int $by = 1)
+    public function increment(string $key, int $by = 1): int
     {
         $new = (int) $this->get($key) + $by;
 
@@ -94,7 +91,7 @@ final class TransientStore implements Store
     /**
      * @inheritDoc
      */
-    public function decrement(string $key, int $by = 1)
+    public function decrement(string $key, int $by = 1): int
     {
         return $this->increment($key, -$by);
     }

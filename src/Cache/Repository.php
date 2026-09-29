@@ -9,11 +9,8 @@ use BitApps\WPKit\Cache\Contracts\Store;
  */
 final class Repository
 {
-    private Store $store;
-
-    public function __construct(Store $store)
+    public function __construct(private Store $store)
     {
-        $this->store = $store;
     }
 
     /**
@@ -27,7 +24,7 @@ final class Repository
     {
         $value = $this->store->get($key);
 
-        return $value !== null ? $value : $default;
+        return $value ?? $default;
     }
 
     /**

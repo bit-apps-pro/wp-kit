@@ -7,11 +7,8 @@ namespace BitApps\WPKit\Container;
  */
 abstract class ServiceProvider
 {
-    protected Container $app;
-
-    public function __construct(Container $app)
+    public function __construct(protected Container $app)
     {
-        $this->app = $app;
     }
 
     /**

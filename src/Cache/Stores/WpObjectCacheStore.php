@@ -13,14 +13,11 @@ use BitApps\WPKit\Cache\Contracts\Store;
  */
 final class WpObjectCacheStore implements Store
 {
-    private string $group;
-
     /**
      * @param string $group WordPress object-cache group all of this store's keys are scoped to
      */
-    public function __construct(string $group = 'default')
+    public function __construct(private string $group = 'default')
     {
-        $this->group = $group;
     }
 
     /**

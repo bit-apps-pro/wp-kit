@@ -32,7 +32,7 @@ final class CacheManager
      */
     public function store(?string $name = null): Repository
     {
-        $name = $name ?? $this->defaultStoreName();
+        $name ??= $this->defaultStoreName();
 
         if (!isset($this->repositories[$name])) {
             $this->repositories[$name] = new Repository($this->makeStore($name));
@@ -46,22 +46,13 @@ final class CacheManager
      */
     private function makeStore(string $name): Store
     {
-        switch ($name) {
-            case 'array':
-                return new ArrayStore();
-
-            case 'transient':
-                return new TransientStore($this->prefix());
-
-            case 'object':
-                return new WpObjectCacheStore($this->objectCacheGroup());
-
-            case 'file':
-                return new FileStore($this->fileStorePath(), $this->prefix());
-
-            default:
-                throw new InvalidArgumentException("Unknown cache store [{$name}].");
-        }
+        return match ($name) {
+            'array'     => new ArrayStore(),
+            'transient' => new TransientStore($this->prefix()),
+            'object'    => new WpObjectCacheStore($this->objectCacheGroup()),
+            'file'      => new FileStore($this->fileStorePath(), $this->prefix()),
+            default     => throw new InvalidArgumentException("Unknown cache store [{$name}]."),
+        };
     }
 
     private function defaultStoreName(): string
