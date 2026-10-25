@@ -64,7 +64,7 @@ final class AjaxRouter
         return $this->_router->getRegisteredRoute($this->currentRouteName());
     }
 
-    private function isRouteMatched(RouteRegister $route, string|array $requestPath)
+    private function isRouteMatched(RouteRegister $route, string|array $requestPath): bool
     {
         if ($route->getRoutePrefix() . $route->getPath() === $requestPath) {
             return true;

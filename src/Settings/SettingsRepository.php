@@ -36,8 +36,12 @@ final class SettingsRepository
         }
 
         $field = $this->schema->field($key);
+        if ($field === null) {
+            return $default;
+        }
 
-        return $field !== null ? $field->default() : $default;
+        // A declared field's own default wins, even when it is null.
+        return $field->default();
     }
 
     /**

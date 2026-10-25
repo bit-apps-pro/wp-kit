@@ -36,6 +36,15 @@ final class SettingsRepositoryTest extends TestCase
         $this->assertFalse($fresh->get('logging_enabled'));
     }
 
+    public function testDeclaredNullDefaultWinsOverCallerFallback(): void
+    {
+        $schema = (new SettingsSchema())->add(SettingField::string('label', null));
+        $repo   = new SettingsRepository('demo_settings', $schema);
+
+        $this->assertNull($repo->get('label', 'fallback'));
+        $this->assertSame('fallback', $repo->get('undeclared', 'fallback'));
+    }
+
     public function testUnknownKeyRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);

@@ -31,7 +31,7 @@
     "dealerdirect/phpcodesniffer-composer-installer": "^0.7",
     "phpcompatibility/phpcompatibility-wp": "*",
     "phpunit/phpunit": "^9.6",
-    "rector/rector": "^2.5",
+    "rector/rector": "2.7.0",
     "captainhook/captainhook": "^5.29",
     "captainhook/hook-installer": "^1.0"
   },

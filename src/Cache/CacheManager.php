@@ -34,9 +34,7 @@ final class CacheManager
     {
         $name ??= $this->defaultStoreName();
 
-        if (!isset($this->repositories[$name])) {
-            $this->repositories[$name] = new Repository($this->makeStore($name));
-        }
+        $this->repositories[$name] ??= new Repository($this->makeStore($name));
 
         return $this->repositories[$name];
     }

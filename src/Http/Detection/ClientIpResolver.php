@@ -73,7 +73,7 @@ final class ClientIpResolver
         return false;
     }
 
-    private static function isIpInRange(string $ip, $range)
+    private static function isIpInRange(string $ip, $range): bool
     {
         $range = trim((string) $range);
         if (!str_contains($range, '/')) {

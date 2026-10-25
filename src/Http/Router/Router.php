@@ -77,9 +77,7 @@ final class Router
     public static function instance($type = null, $namespace = null, $version = null)
     {
         if ($type === null) {
-            if (\is_null(self::$_instance)) {
-                self::$_instance = new self(RequestType::AJAX, $namespace, $version);
-            }
+            self::$_instance ??= new self(RequestType::AJAX, $namespace, $version);
 
             return self::$_instance;
         }

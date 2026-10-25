@@ -185,9 +185,7 @@ final class RouteBase
      */
     public function getRouter()
     {
-        if (!isset($this->_router)) {
-            $this->_router = Router::instance();
-        }
+        $this->_router ??= Router::instance();
 
         return $this->_router;
     }
