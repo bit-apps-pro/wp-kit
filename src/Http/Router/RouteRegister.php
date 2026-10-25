@@ -30,6 +30,13 @@ final class RouteRegister
     private array $_middleware = [];
 
     /**
+     * REST permission callback for this route; falls back to the group's.
+     *
+     * @var null|callable
+     */
+    private $_permission;
+
+    /**
      * Instance of rest request.
      *
      * @var WP_REST_Request
@@ -154,6 +161,26 @@ final class RouteRegister
         $this->_middleware = array_merge($this->_middleware, \func_get_args());
 
         return $this;
+    }
+
+    /**
+     * Sets the REST permission callback for this route.
+     *
+     * @param callable $callback receives the WP_REST_Request; return true, false or WP_Error
+     */
+    public function permission(callable $callback): self
+    {
+        $this->_permission = $callback;
+
+        return $this;
+    }
+
+    /**
+     * REST permission callback: the route's own, else its group's, else public.
+     */
+    public function getPermissionCallback(): callable
+    {
+        return $this->_permission ?? $this->_routeBase->getPermission() ?? '__return_true';
     }
 
     public function handleMiddleware(): bool

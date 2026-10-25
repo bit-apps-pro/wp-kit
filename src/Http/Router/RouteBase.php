@@ -45,6 +45,13 @@ final class RouteBase
 
     private array $_middleware = [];
 
+    /**
+     * REST permission callback shared by every route in this group.
+     *
+     * @var null|callable
+     */
+    private $_permission;
+
     private static ?self $_isGrouped = null;
 
     /**
@@ -150,6 +157,28 @@ final class RouteBase
     public function getMiddleware(): array
     {
         return $this->_middleware;
+    }
+
+    /**
+     * Sets the REST permission callback for every route in this group.
+     *
+     * @param callable $callback receives the WP_REST_Request; return true, false or WP_Error
+     *
+     * @return RouteBase
+     */
+    public function permission(callable $callback): self
+    {
+        $this->_permission = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Returns the group's REST permission callback, if any.
+     */
+    public function getPermission(): ?callable
+    {
+        return $this->_permission;
     }
 
     /**

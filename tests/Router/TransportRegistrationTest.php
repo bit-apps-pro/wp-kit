@@ -40,6 +40,41 @@ final class TransportRegistrationTest extends TestCase
         assertTest(\is_callable($registration['args'][0]['permission_callback']), 'REST permission callback is not callable');
     }
 
+    public function testRESTTransportDefaultsToAPublicPermissionCallback(): void
+    {
+        $route = (new RouteBase())->get('entries', fn () => 'ok');
+
+        (new APIRouter(new Router('api', 'example', 'v1')))->addRoute($route);
+
+        assertSameValue('__return_true', WpKitTestState::$restRoutes[0]['args'][0]['permission_callback'], 'default permission changed');
+    }
+
+    public function testRESTTransportUsesTheGroupPermissionCallback(): void
+    {
+        $permission = fn () => false;
+        $group      = (new RouteBase())->permission($permission);
+        $route      = $group->match('GET,POST', 'entries', fn () => 'ok');
+
+        (new APIRouter(new Router('api', 'example', 'v1')))->addRoute($route);
+
+        foreach (WpKitTestState::$restRoutes[0]['args'] as $args) {
+            assertSameValue($permission, $args['permission_callback'], 'group permission not applied to every method');
+        }
+    }
+
+    public function testRESTTransportRoutePermissionOverridesTheGroup(): void
+    {
+        $routePermission = fn () => true;
+        $route           = (new RouteBase())
+            ->permission(fn () => false)
+            ->get('entries', fn () => 'ok')
+            ->permission($routePermission);
+
+        (new APIRouter(new Router('api', 'example', 'v1')))->addRoute($route);
+
+        assertSameValue($routePermission, WpKitTestState::$restRoutes[0]['args'][0]['permission_callback'], 'route permission did not win');
+    }
+
     public function testRESTTransportWordPressMethodConstantsRemainMapped(): void
     {
         $router    = new Router('api', 'example', 'v1');
