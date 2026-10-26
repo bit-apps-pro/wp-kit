@@ -19,6 +19,8 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
     use InteractsWithHeaders;
     use IpTool;
 
+    private const APPLICATION_MEDIA_PREFIX = 'application/';
+
     protected $rest;
 
     protected array $attributes = [];
@@ -118,14 +120,32 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
         return $this->_content ??= (string) file_get_contents('php://input');
     }
 
+    /**
+     * Returns the sanitized, upper-cased HTTP method, or '' when the server omits it.
+     *
+     * @return string
+     */
     public function method()
     {
-        return sanitize_text_field($_SERVER['REQUEST_METHOD']);
+        if (!isset($_SERVER['REQUEST_METHOD'])) {
+            return '';
+        }
+
+        return strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])));
     }
 
+    /**
+     * Returns the sanitized Content-Type with a leading "application/" removed (e.g. "json").
+     *
+     * @return string
+     */
     public function contentType()
     {
-        return isset($_SERVER['CONTENT_TYPE']) ? ltrim($_SERVER['CONTENT_TYPE'], 'application/') : '';
+        $type = (string) $this->header('Content-Type', '');
+
+        return stripos($type, self::APPLICATION_MEDIA_PREFIX) === 0
+            ? substr($type, \strlen(self::APPLICATION_MEDIA_PREFIX))
+            : $type;
     }
 
     public function setApiRequest(WP_REST_Request $request)

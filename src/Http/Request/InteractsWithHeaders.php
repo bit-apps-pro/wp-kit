@@ -15,27 +15,35 @@ trait InteractsWithHeaders
     private static array $_unprefixedHeaders = ['CONTENT_TYPE', 'CONTENT_LENGTH', 'CONTENT_MD5'];
 
     /**
-     * Returns every request header keyed by canonical name (lowercase, underscores); values are raw, so validate them.
+     * Returns every request header, sanitized, keyed by canonical name (lowercase, underscores).
      *
      * @return array<string, string>
      */
     public function headers()
     {
-        if (isset($this->rest) && $this->rest instanceof WP_REST_Request) {
-            return array_map(static fn ($values) => implode(', ', (array) $values), (array) $this->rest->get_headers());
-        }
-
-        return $this->serverHeaders();
+        return array_map('sanitize_text_field', $this->rawHeaders());
     }
 
     /**
-     * Returns one header by any name style ("X-Token" or "x_token"), or the default when absent.
+     * Returns one sanitized header by any name style ("X-Token" or "x_token"), or the default when absent.
      *
      * @return null|string
      */
     public function header(string $name, ?string $default = null)
     {
-        return $this->headers()[self::canonicalHeaderName($name)] ?? $default;
+        $value = $this->rawHeader($name);
+
+        return $value === null ? $default : sanitize_text_field($value);
+    }
+
+    /**
+     * Returns one header exactly as sent, for signature or token checks only; never output or store it unsanitized.
+     *
+     * @return null|string
+     */
+    public function rawHeader(string $name, ?string $default = null)
+    {
+        return $this->rawHeaders()[self::canonicalHeaderName($name)] ?? $default;
     }
 
     /**
@@ -45,7 +53,21 @@ trait InteractsWithHeaders
      */
     public function hasHeader(string $name)
     {
-        return \array_key_exists(self::canonicalHeaderName($name), $this->headers());
+        return \array_key_exists(self::canonicalHeaderName($name), $this->rawHeaders());
+    }
+
+    /**
+     * Collects unsanitized headers from the REST request when hydrated, else from the server globals.
+     *
+     * @return array<string, string>
+     */
+    private function rawHeaders(): array
+    {
+        if (isset($this->rest) && $this->rest instanceof WP_REST_Request) {
+            return array_map(static fn ($values) => implode(', ', (array) $values), (array) $this->rest->get_headers());
+        }
+
+        return $this->serverHeaders();
     }
 
     /**
