@@ -245,16 +245,33 @@ final class StaticRoutingTest extends TestCase
         assertTest(WpKitTestState::$rewriteFlushes > 0, 'activation did not flush rewrite rules');
     }
 
-    public function testDeactivationOnlyFlushesRewriteRules(): void
+    public function testDeactivationClearsPersistedRulesInsteadOfFlushing(): void
     {
         $this->makeTransport(['entries/{id}' => static function () {
             return 'x';
         }]);
+        WpKitTestState::$options['rewrite_rules'] = ['^landing/entries/([^/]+)/?$' => 'index.php?pagename=landing&id=$matches[1]'];
 
         do_action('plugin_deactivate');
 
         assertSameValue([], WpKitTestState::$rewriteRules, 'deactivation registered rewrite rules');
-        assertSameValue(1, WpKitTestState::$rewriteFlushes, 'deactivation must flush exactly once');
+        assertSameValue(0, WpKitTestState::$rewriteFlushes, 'deactivation flushed, which re-saves rules still registered on this request');
+        assertSameValue('', WpKitTestState::$options['rewrite_rules'], 'persisted rules were not cleared for regeneration');
+    }
+
+    public function testDeactivationAfterInitDoesNotPersistTheStillRegisteredRules(): void
+    {
+        $this->makeTransport(['entries/{id}' => static function () {
+            return 'x';
+        }]);
+        WpKitTestState::$options['rewrite_rules'] = ['^landing/entries/([^/]+)/?$' => 'index.php?pagename=landing&id=$matches[1]'];
+
+        do_action('init');
+        do_action('plugin_deactivate');
+
+        assertTest(isset(WpKitTestState::$rewriteRules['^landing/entries/([^/]+)/?$']), 'init did not register the route rule');
+        assertSameValue(0, WpKitTestState::$rewriteFlushes, 'deactivation re-persisted the registered rules');
+        assertSameValue('', WpKitTestState::$options['rewrite_rules'], 'route rule outlived deactivation');
     }
 
     public function testInitFlushesOnceWhenStaticRulesAreMissingFromPersistedRules(): void
