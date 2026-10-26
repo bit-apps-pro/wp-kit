@@ -103,13 +103,21 @@ if (!class_exists('WP_REST_Request')) {
 
         private $headers;
 
-        public function __construct($body = [], $query = [], $route = [], $json = [], $headers = [])
+        private $rawBody;
+
+        public function __construct($body = [], $query = [], $route = [], $json = [], $headers = [], $rawBody = '')
         {
             $this->body    = $body;
             $this->query   = $query;
             $this->route   = $route;
             $this->json    = $json;
             $this->headers = $headers;
+            $this->rawBody = $rawBody;
+        }
+
+        public function get_body()
+        {
+            return $this->rawBody;
         }
 
         public function get_headers()

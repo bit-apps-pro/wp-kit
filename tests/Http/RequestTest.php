@@ -3,6 +3,7 @@
 namespace BitApps\WPKit\Tests\Http;
 
 use BitApps\WPKit\Http\Request\Request;
+use BitApps\WPKit\Tests\Fixtures\FakePhpInputStream;
 use BitApps\WPKit\Tests\TestCase;
 use WP_REST_Request;
 use WpKitTestState;
@@ -49,6 +50,14 @@ final class ContractOverridingRequest extends Request
  */
 final class RequestTest extends TestCase
 {
+    /** Puts the built-in php:// wrapper back after a test faked php://input. */
+    protected function tearDown(): void
+    {
+        FakePhpInputStream::uninstall();
+
+        parent::tearDown();
+    }
+
     public function testConsumerSubclassMayOverrideAccessorsWithUntypedSignatures(): void
     {
         $request = new ContractOverridingRequest();
@@ -208,5 +217,52 @@ final class RequestTest extends TestCase
 
         assertSameValue('from-rest', $request->header('X-Signature'), 'REST header did not win');
         assertSameValue('a, b', $request->header('Accept'), 'multi-value REST header not joined');
+    }
+
+    public function testRequestContentReturnsTheRawBodyByteForByte(): void
+    {
+        $payload                 = "{\"b\": 2,  \"a\":\"\\u00e9\"}\n";
+        $_SERVER['CONTENT_TYPE'] = 'application/json';
+        FakePhpInputStream::install($payload);
+        $request = new Request();
+
+        assertSameValue($payload, $request->content(), 'raw body was altered');
+        assertSameValue(['b' => 2, 'a' => "\u{e9}"], $request->body(), 'decoded body changed');
+    }
+
+    public function testRequestContentReturnsNonJsonPayloadsVerbatim(): void
+    {
+        $_SERVER['CONTENT_TYPE'] = 'application/x-www-form-urlencoded';
+        FakePhpInputStream::install('a=1&b=%20+x');
+
+        assertSameValue('a=1&b=%20+x', (new Request())->content(), 'form payload was altered');
+    }
+
+    public function testRequestContentIsEmptyWithoutABody(): void
+    {
+        FakePhpInputStream::install('');
+
+        assertSameValue('', (new Request())->content(), 'empty body was not an empty string');
+    }
+
+    public function testRequestReadsTheInputStreamOnce(): void
+    {
+        $_SERVER['CONTENT_TYPE'] = 'application/json';
+        FakePhpInputStream::install('{"a":1}');
+        $request = new Request();
+
+        $request->content();
+        $request->content();
+
+        assertSameValue(1, FakePhpInputStream::$opens, 'php://input was read more than once');
+    }
+
+    public function testRequestContentPrefersTheHydratedRESTBody(): void
+    {
+        FakePhpInputStream::install('from-input');
+        $request = new Request();
+        $request->setApiRequest(new WP_REST_Request([], [], [], [], [], 'from-rest'));
+
+        assertSameValue('from-rest', $request->content(), 'REST raw body did not win');
     }
 }
