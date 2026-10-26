@@ -19,9 +19,7 @@ final class Shortcode
 
     public function __construct()
     {
-        if (!isset(self::$_wrapper)) {
-            self::$_wrapper = new ShortcodeWrapper();
-        }
+        self::$_wrapper ??= new ShortcodeWrapper();
     }
 
     public function __call(string $method, array $parameters)

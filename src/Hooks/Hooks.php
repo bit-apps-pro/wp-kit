@@ -20,9 +20,7 @@ final class Hooks
 
     public function __construct()
     {
-        if (!isset(self::$_hook)) {
-            self::$_hook = new HooksWrapper();
-        }
+        self::$_hook ??= new HooksWrapper();
     }
 
     public function __call(string $method, array $parameters)

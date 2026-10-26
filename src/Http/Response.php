@@ -254,9 +254,7 @@ final class Response
 
     private static function current(): Response
     {
-        if (\is_null(self::$_current)) {
-            self::$_current = new self();
-        }
+        self::$_current ??= new self();
 
         return self::$_current;
     }
