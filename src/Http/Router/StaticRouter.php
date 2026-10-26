@@ -42,9 +42,13 @@ class StaticRouter
         flush_rewrite_rules();
     }
 
+    /**
+     * Empties the persisted rules so the next request rebuilds them without ours; a flush here would
+     * re-save them, as they are still registered on the deactivating request.
+     */
     public function flushOnDeactivate(): void
     {
-        flush_rewrite_rules();
+        update_option('rewrite_rules', '');
     }
 
     public function registerRewriteRules(): void
