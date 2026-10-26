@@ -411,6 +411,136 @@ final class StaticRoutingTest extends TestCase
         assertSameValue(2, WpKitTestState::$rewriteFlushes, 'missing rules were not retried after the window');
     }
 
+    public function testTemplateRedirectEmptyArgumentFallsBackToTheGlobalWp(): void
+    {
+        $transport = $this->makeTransport(['entries/{id}' => static fn ($id) => 'entry ' . $id]);
+        WpKitTestState::$options['home'] = 'https://example.test/blog';
+        $_SERVER['REQUEST_URI']          = '/blog/landing/entries/9';
+        $GLOBALS['wp']                   = new \WP();
+        $GLOBALS['wp']->request          = 'landing/entries/9';
+
+        $transport->handleRequest('');
+
+        assertSameValue('page-entry 9', apply_filters('the_content', 'page-'), "template_redirect's '' argument hid the global WP");
+    }
+
+    public function testParsedPathWithSurroundingSlashesStillMatches(): void
+    {
+        $this->makeTransport(['entries/{id}' => static fn ($id) => 'entry ' . $id]);
+        $GLOBALS['wp']          = new \WP();
+        $GLOBALS['wp']->request = '/landing/entries/5/';
+
+        do_action('template_redirect');
+
+        assertSameValue('page-entry 5', apply_filters('the_content', 'page-'), 'slashes around the parsed path broke matching');
+    }
+
+    public function testRequestUriFallbackWorksWithoutAWpObject(): void
+    {
+        $this->makeTransport(['entries/{id}' => static fn ($id) => 'entry ' . $id]);
+        WpKitTestState::$options['home'] = 'https://example.test/blog/';
+        $_SERVER['REQUEST_URI']          = '/blog/landing/entries/3';
+
+        do_action('template_redirect');
+
+        assertSameValue('page-entry 3', apply_filters('the_content', 'page-'), 'fallback needed a WP object');
+    }
+
+    public function testHomePathIsStrippedOnlyOnASegmentBoundary(): void
+    {
+        $this->makeTransport(['entries/{id}' => static fn ($id) => 'entry ' . $id]);
+        WpKitTestState::$options['home'] = 'https://example.test/la';
+        $_SERVER['REQUEST_URI']          = '/landing/entries/3';
+
+        do_action('template_redirect');
+
+        assertSameValue('page-entry 3', apply_filters('the_content', 'page-'), 'home path "/la" was stripped from the "/landing" segment');
+    }
+
+    public function testEarlyDispatchIgnoresUnmatchedRequests(): void
+    {
+        $calls = 0;
+        $this->makeTransport(['ping' => static function () use (&$calls) {
+            ++$calls;
+
+            return 'pong';
+        }])->dispatchOnParseRequest();
+        $wp          = new \WP();
+        $wp->request = 'landing/other';
+
+        do_action('parse_request', $wp);
+
+        assertSameValue(0, $calls, 'early dispatch ran a route for an unmatched path');
+        assertTest(!isset(WpKitTestState::$filters['the_content']), 'early dispatch touched page content for an unmatched path');
+    }
+
+    public function testEarlyDispatchStillEnforcesTheRouteMethod(): void
+    {
+        $calls = 0;
+        new Router('static', 'landing', null);
+        (new RouteBase())->post('hook', static function () use (&$calls) {
+            ++$calls;
+
+            return 'ok';
+        });
+        (new StaticRouter('landing', 'plugin_activate', 'plugin_deactivate'))->dispatchOnParseRequest();
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $wp                        = new \WP();
+        $wp->request               = 'landing/hook';
+
+        do_action('parse_request', $wp);
+
+        assertSameValue(0, $calls, 'early dispatch ran a POST route for GET');
+    }
+
+    public function testRetryWindowIsTrackedPerPage(): void
+    {
+        $this->makeTransport(['entries/{id}' => static fn () => 'x']);
+        new Router('static', 'portal', null);
+        (new RouteBase())->get('profile', static fn () => 'x');
+        new StaticRouter('portal', 'plugin_activate', 'plugin_deactivate');
+
+        do_action('init');
+        do_action('init');
+
+        assertSameValue(2, WpKitTestState::$rewriteFlushes, 'one page\'s retry window suppressed another page\'s flush');
+    }
+
+    public function testActivationFlushesEvenInsideTheRetryWindow(): void
+    {
+        $this->makeTransport(['entries/{id}' => static fn () => 'x']);
+
+        do_action('init');
+        do_action('plugin_activate');
+
+        assertSameValue(2, WpKitTestState::$rewriteFlushes, 'activation flush was throttled');
+    }
+
+    public function testPersistedRulesSkipFlushAfterAnEarlierRetry(): void
+    {
+        $this->makeTransport(['entries/{id}' => static fn () => 'x']);
+
+        do_action('init');
+        WpKitTestState::$options['rewrite_rules'] = ['^landing/entries/([^/]+)/?$' => 'index.php?pagename=landing&id=$matches[1]'];
+        WpKitTestState::$currentTime              = '2024-01-02 04:00:00';
+        do_action('init');
+
+        assertSameValue(1, WpKitTestState::$rewriteFlushes, 'persisted rules were flushed again after the window');
+    }
+
+    public function testRootRuleCoexistsWithOtherRoutes(): void
+    {
+        $this->makeTransport([
+            '/'            => static fn () => 'home',
+            'entries/{id}' => static fn () => 'x',
+        ]);
+
+        do_action('init');
+
+        assertTest(isset(WpKitTestState::$rewriteRules['^landing/?$']), 'root rule missing next to other routes');
+        assertTest(isset(WpKitTestState::$rewriteRules['^landing/entries/([^/]+)/?$']), 'route rule missing next to the root rule');
+    }
+
     private function makeTransport(array $routes = []): StaticRouter
     {
         new Router('static', 'landing', null);
