@@ -30,6 +30,11 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
     protected $body = [];
 
     /**
+     * Raw php://input, read at most once.
+     */
+    private ?string $_content = null;
+
+    /**
      * Undocumented function.
      */
     public function __construct(protected ?RouteRegister $route = null)
@@ -97,6 +102,20 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
     public function body()
     {
         return $this->body;
+    }
+
+    /**
+     * Returns the raw request body exactly as sent, e.g. for signature checks.
+     *
+     * @return string
+     */
+    public function content()
+    {
+        if (isset($this->rest)) {
+            return (string) $this->rest->get_body();
+        }
+
+        return $this->_content ??= (string) file_get_contents('php://input');
     }
 
     public function method()
@@ -247,7 +266,7 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
                 !str_contains($this->contentType(), 'form-data')
                 && !str_contains($this->contentType(), 'x-www-form-urlencoded')
             ) {
-                $this->body = JSON::maybeDecode(file_get_contents('php://input'), JsonConfig::decodeAsArray());
+                $this->body = JSON::maybeDecode($this->content(), JsonConfig::decodeAsArray());
             }
 
             if (!empty($_POST)) {
