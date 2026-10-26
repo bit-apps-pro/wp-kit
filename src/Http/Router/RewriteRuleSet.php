@@ -18,14 +18,15 @@ final class RewriteRuleSet
         $this->_pageName = trim($pageName, '/');
     }
 
+    /**
+     * Adds the rule for one route path; only an empty path maps the page root itself.
+     */
     public function addPath(string $path): void
     {
-        if (empty($this->_rules)) {
-            $this->_rules["^{$this->_pageName}/?$"] = "index.php?pagename={$this->_pageName}";
-        }
-
         $path = trim($path, '/');
         if ($path === '') {
+            $this->_rules["^{$this->_pageName}/?$"] = "index.php?pagename={$this->_pageName}";
+
             return;
         }
 

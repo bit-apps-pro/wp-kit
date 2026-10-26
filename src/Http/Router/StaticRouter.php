@@ -4,6 +4,7 @@ namespace BitApps\WPKit\Http\Router;
 
 use BitApps\WPKit\Http\RequestType;
 use BitApps\WPKit\Http\Response;
+use WP;
 
 if (!\defined('ABSPATH')) {
     exit;
@@ -11,6 +12,13 @@ if (!\defined('ABSPATH')) {
 
 class StaticRouter
 {
+    /**
+     * Seconds to wait before re-flushing rules that did not persist (e.g. filtered out by another plugin).
+     */
+    private const FLUSH_RETRY_SECONDS = 300;
+
+    private const FLUSH_RETRY_TRANSIENT_PREFIX = 'wpkit_static_flush_';
+
     private Router $router;
 
     private string $pageName;
@@ -59,10 +67,27 @@ class StaticRouter
         return array_merge($vars, $this->queryVars);
     }
 
-    public function handleRequest(): void
+    /**
+     * Dispatches on parse_request instead of template_redirect, before the main query runs or a 404 is
+     * flagged; for routes that send their own response and exit (callbacks, webhooks), not page content.
+     */
+    public function dispatchOnParseRequest(): self
     {
-        $requestPath = sanitize_url((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
-        $method      = strtoupper(sanitize_text_field($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        remove_action('template_redirect', [$this, 'handleRequest']);
+        add_action('parse_request', [$this, 'handleRequest']);
+
+        return $this;
+    }
+
+    /**
+     * Runs the first route matching the request; parse_request passes the WP object, template_redirect nothing.
+     *
+     * @param mixed $wp
+     */
+    public function handleRequest($wp = null): void
+    {
+        $requestPath = $this->requestPath($wp instanceof WP ? $wp : ($GLOBALS['wp'] ?? null));
+        $method      = strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? 'GET')));
         foreach ($this->router->getRoutes() as $route) {
             if (!\in_array($method, $route->getMethods(), true)) {
                 continue;
@@ -122,12 +147,26 @@ class StaticRouter
         return true;
     }
 
+    /**
+     * Flushes when our rules are missing from the persisted set, at most once per retry window, and never
+     * under plain permalinks where rewrite rules are unused.
+     */
     public function maybeFlushRewriteRules(): void
     {
-        if (empty($this->rewriteRules) || self::isRewriteExists('', $this->rewriteRules)) {
+        if (
+            empty($this->rewriteRules)
+            || !get_option('permalink_structure')
+            || self::isRewriteExists('', $this->rewriteRules)
+        ) {
             return;
         }
 
+        $retryKey = self::FLUSH_RETRY_TRANSIENT_PREFIX . $this->pageName;
+        if (get_transient($retryKey) !== false) {
+            return;
+        }
+
+        set_transient($retryKey, 1, self::FLUSH_RETRY_SECONDS);
         flush_rewrite_rules();
     }
 
@@ -138,6 +177,22 @@ class StaticRouter
         add_action('init', [$this, 'registerRewriteRules']);
         add_action('query_vars', [$this, 'addQueryVars']);
         add_action('template_redirect', [$this, 'handleRequest']);
+    }
+
+    /**
+     * Request path relative to the site root: WP's parsed path when set (strips home and index.php),
+     * else the request URI minus the home path (plain permalinks).
+     */
+    private function requestPath(?WP $wp): string
+    {
+        if ($wp !== null && \is_string($wp->request) && $wp->request !== '') {
+            return sanitize_url('/' . trim($wp->request, '/'));
+        }
+
+        $path     = (string) wp_parse_url(sanitize_url(wp_unslash($_SERVER['REQUEST_URI'] ?? '')), PHP_URL_PATH);
+        $homePath = rtrim((string) wp_parse_url(home_url(), PHP_URL_PATH), '/');
+
+        return $homePath !== '' && str_starts_with($path, $homePath . '/') ? substr($path, \strlen($homePath)) : $path;
     }
 
     private function processRoutes(): void
