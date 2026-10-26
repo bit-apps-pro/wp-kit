@@ -201,12 +201,23 @@ final class RequestTest extends TestCase
         );
     }
 
-    public function testRequestHeaderValuesAreReturnedUnsanitized(): void
+    public function testRequestHeaderValuesAreSanitizedByDefault(): void
     {
-        $_SERVER['HTTP_X_SIGNATURE'] = "t=1,v1=ab+/= <b>";
+        $_SERVER['HTTP_X_NAME']  = "  <b>Ada</b>\n\tLovelace %41 ";
+        $_SERVER['HTTP_X_TRACE'] = 't-1';
+        $request                 = new Request();
+
+        assertSameValue('Ada Lovelace', $request->header('X-Name'), 'header() returned an unsanitized value');
+        assertSameValue(['x_name' => 'Ada Lovelace', 'x_trace' => 't-1'], $request->headers(), 'headers() returned unsanitized values');
+    }
+
+    public function testRequestRawHeaderReturnsTheExactValueForVerification(): void
+    {
+        $_SERVER['HTTP_X_SIGNATURE'] = "t=1,v1=ab+/= <b>%41";
         $request                     = new Request();
 
-        assertSameValue("t=1,v1=ab+/= <b>", $request->header('X-Signature'), 'header value was altered');
+        assertSameValue("t=1,v1=ab+/= <b>%41", $request->rawHeader('X-Signature'), 'raw header value was altered');
+        assertSameValue('fallback', $request->rawHeader('X-Missing', 'fallback'), 'raw header ignored the default');
     }
 
     public function testRequestRESTRequestHeadersTakePrecedenceOverServer(): void
@@ -216,6 +227,7 @@ final class RequestTest extends TestCase
         $request->setApiRequest(new WP_REST_Request([], [], [], [], ['x_signature' => ['from-rest'], 'accept' => ['a', 'b']]));
 
         assertSameValue('from-rest', $request->header('X-Signature'), 'REST header did not win');
+        assertSameValue('from-rest', $request->rawHeader('X-Signature'), 'REST raw header did not win');
         assertSameValue('a, b', $request->header('Accept'), 'multi-value REST header not joined');
     }
 
@@ -264,5 +276,44 @@ final class RequestTest extends TestCase
         $request->setApiRequest(new WP_REST_Request([], [], [], [], [], 'from-rest'));
 
         assertSameValue('from-rest', $request->content(), 'REST raw body did not win');
+    }
+
+    public function testRequestMethodIsSanitizedAndUpperCased(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = ' <i>patch</i> ';
+
+        assertSameValue('PATCH', (new Request())->method(), 'request method was not sanitized');
+    }
+
+    public function testRequestMethodIsEmptyWhenTheServerOmitsIt(): void
+    {
+        unset($_SERVER['REQUEST_METHOD']);
+
+        assertSameValue('', (new Request())->method(), 'missing request method was not empty');
+    }
+
+    public function testRequestContentTypeStripsOnlyTheApplicationPrefix(): void
+    {
+        $cases = [
+            'application/json; charset=utf-8' => 'json; charset=utf-8',
+            'application/pdf'                  => 'pdf',
+            'Application/XML'                  => 'XML',
+            'text/plain'                       => 'text/plain',
+            'multipart/form-data; boundary=x'  => 'multipart/form-data; boundary=x',
+            ' <b>text/csv</b> '                => 'text/csv',
+        ];
+
+        foreach ($cases as $header => $expected) {
+            $_SERVER['CONTENT_TYPE'] = $header;
+
+            assertSameValue($expected, (new Request())->contentType(), "content type mangled: {$header}");
+        }
+    }
+
+    public function testRequestContentTypeIsEmptyWhenTheServerOmitsIt(): void
+    {
+        unset($_SERVER['CONTENT_TYPE']);
+
+        assertSameValue('', (new Request())->contentType(), 'missing content type was not empty');
     }
 }

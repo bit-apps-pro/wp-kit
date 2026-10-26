@@ -313,9 +313,24 @@ function wp_ob_end_flush_all()
     }
 }
 
+/**
+ * Mirrors core _sanitize_text_fields(): strips tags, collapses whitespace, drops %XX octets.
+ */
 function sanitize_text_field($value)
 {
-    return $value;
+    if (\is_array($value) || \is_object($value)) {
+        return '';
+    }
+
+    $filtered = trim(preg_replace('/[\r\n\t ]+/', ' ', strip_tags((string) $value)));
+
+    $found = false;
+    while (preg_match('/%[a-f0-9]{2}/i', $filtered, $match)) {
+        $filtered = str_replace($match[0], '', $filtered);
+        $found    = true;
+    }
+
+    return $found ? trim(preg_replace('/ +/', ' ', $filtered)) : $filtered;
 }
 
 function sanitize_url($value)
