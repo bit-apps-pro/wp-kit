@@ -101,12 +101,20 @@ if (!class_exists('WP_REST_Request')) {
 
         private $route;
 
-        public function __construct($body = [], $query = [], $route = [], $json = [])
+        private $headers;
+
+        public function __construct($body = [], $query = [], $route = [], $json = [], $headers = [])
         {
-            $this->body  = $body;
-            $this->query = $query;
-            $this->route = $route;
-            $this->json  = $json;
+            $this->body    = $body;
+            $this->query   = $query;
+            $this->route   = $route;
+            $this->json    = $json;
+            $this->headers = $headers;
+        }
+
+        public function get_headers()
+        {
+            return $this->headers;
         }
 
         public function get_body_params()

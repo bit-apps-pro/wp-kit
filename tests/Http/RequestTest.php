@@ -147,4 +147,66 @@ final class RequestTest extends TestCase
         assertSameValue(['name' => 'Ada'], $validated, 'successful validation result changed');
         assertSameValue(null, WpKitTestState::$sentJson, 'successful validation emitted an error response');
     }
+
+    public function testRequestHeaderIsReadFromServerByAnyNameStyle(): void
+    {
+        $_SERVER['HTTP_X_SETUP_TOKEN'] = 'abc';
+        $request                       = new Request();
+
+        assertSameValue('abc', $request->header('X-Setup-Token'), 'dashed header name not resolved');
+        assertSameValue('abc', $request->header('x_setup_token'), 'canonical header name not resolved');
+        assertTest($request->hasHeader('x-setup-token'), 'hasHeader missed a present header');
+    }
+
+    public function testRequestContentHeadersAreExposedWithoutTheHttpPrefix(): void
+    {
+        $_SERVER['CONTENT_TYPE']   = 'application/json';
+        $_SERVER['CONTENT_LENGTH'] = '42';
+        $request                   = new Request();
+
+        assertSameValue('application/json', $request->header('Content-Type'), 'content type header missing');
+        assertSameValue('42', $request->header('Content-Length'), 'content length header missing');
+    }
+
+    public function testRequestMissingHeaderFallsBackToTheDefault(): void
+    {
+        $request = new Request();
+
+        assertSameValue(null, $request->header('X-Missing'), 'missing header was not null');
+        assertSameValue('fallback', $request->header('X-Missing', 'fallback'), 'missing header ignored the default');
+        assertSameValue(false, $request->hasHeader('X-Missing'), 'hasHeader reported a missing header');
+    }
+
+    public function testRequestHeadersAreKeyedByCanonicalName(): void
+    {
+        $_SERVER['HTTP_ACCEPT']    = 'application/json';
+        $_SERVER['HTTP_X_TRACE']   = 't-1';
+        $_SERVER['HTTP_X_ARRAY']   = ['not', 'a', 'string'];
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $request                   = new Request();
+
+        assertSameValue(
+            ['accept' => 'application/json', 'x_trace' => 't-1'],
+            $request->headers(),
+            'header map changed',
+        );
+    }
+
+    public function testRequestHeaderValuesAreReturnedUnsanitized(): void
+    {
+        $_SERVER['HTTP_X_SIGNATURE'] = "t=1,v1=ab+/= <b>";
+        $request                     = new Request();
+
+        assertSameValue("t=1,v1=ab+/= <b>", $request->header('X-Signature'), 'header value was altered');
+    }
+
+    public function testRequestRESTRequestHeadersTakePrecedenceOverServer(): void
+    {
+        $_SERVER['HTTP_X_SIGNATURE'] = 'from-server';
+        $request                     = new Request();
+        $request->setApiRequest(new WP_REST_Request([], [], [], [], ['x_signature' => ['from-rest'], 'accept' => ['a', 'b']]));
+
+        assertSameValue('from-rest', $request->header('X-Signature'), 'REST header did not win');
+        assertSameValue('a, b', $request->header('Accept'), 'multi-value REST header not joined');
+    }
 }
