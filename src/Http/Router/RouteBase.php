@@ -52,7 +52,20 @@ final class RouteBase
      */
     private $_permission;
 
+    /**
+     * Enclosing group this route or group was declared in; attributes inherit from it.
+     */
+    private ?self $_parent;
+
     private static ?self $_isGrouped = null;
+
+    /**
+     * Captures the group being declared, so nested routes and groups inherit from it.
+     */
+    public function __construct()
+    {
+        $this->_parent = self::$_isGrouped;
+    }
 
     /**
      * Handle static call to route.
@@ -112,7 +125,7 @@ final class RouteBase
      */
     public function isNoAuth(): ?bool
     {
-        return $this->_noAuth;
+        return $this->_noAuth ?? $this->_parent?->isNoAuth();
     }
 
     /**
@@ -122,7 +135,7 @@ final class RouteBase
      */
     public function isTokenIgnored(): ?bool
     {
-        return $this->_ignoreToken;
+        return $this->_ignoreToken ?? $this->_parent?->isTokenIgnored();
     }
 
     /**
@@ -156,7 +169,7 @@ final class RouteBase
      */
     public function getMiddleware(): array
     {
-        return $this->_middleware;
+        return array_merge($this->_parent?->getMiddleware() ?? [], $this->_middleware);
     }
 
     /**
@@ -178,7 +191,7 @@ final class RouteBase
      */
     public function getPermission(): ?callable
     {
-        return $this->_permission;
+        return $this->_permission ?? $this->_parent?->getPermission();
     }
 
     /**
@@ -188,7 +201,16 @@ final class RouteBase
      */
     public function getRoutePrefix()
     {
-        return $this->_prefix;
+        $parentPrefix = $this->_parent?->getRoutePrefix();
+        if ($parentPrefix === null || $parentPrefix === '') {
+            return $this->_prefix;
+        }
+
+        if ($this->_prefix === null || $this->_prefix === '') {
+            return $parentPrefix;
+        }
+
+        return rtrim($parentPrefix, '/') . '/' . ltrim($this->_prefix, '/');
     }
 
     /**
@@ -200,9 +222,14 @@ final class RouteBase
      */
     public function group(Closure $callback): self
     {
+        $enclosing        = self::$_isGrouped;
         self::$_isGrouped = $this;
-        $callback();
-        self::$_isGrouped = null;
+
+        try {
+            $callback();
+        } finally {
+            self::$_isGrouped = $enclosing;
+        }
 
         return $this;
     }
@@ -228,11 +255,6 @@ final class RouteBase
      */
     private function getRegistrar(): RouteRegister
     {
-        $instance = $this;
-        if (!\is_null(self::$_isGrouped)) {
-            $instance = self::$_isGrouped;
-        }
-
-        return new RouteRegister($instance);
+        return new RouteRegister($this);
     }
 }
