@@ -16,6 +16,7 @@ use WP_REST_Request;
 
 class Request extends Validator implements ArrayAccess, JsonSerializable
 {
+    use InteractsWithHeaders;
     use IpTool;
 
     protected $rest;
