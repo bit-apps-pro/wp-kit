@@ -90,6 +90,14 @@ final class WpDieException extends RuntimeException
 {
 }
 
+if (!class_exists('WP')) {
+    /** Minimal WP: only the parsed request path the static router reads. */
+    class WP
+    {
+        public $request = '';
+    }
+}
+
 if (!class_exists('WP_REST_Request')) {
     class WP_REST_Request
     {
@@ -230,8 +238,11 @@ function resetWpKitTestState()
         'time_format'     => 'H:i:s',
         'timezone_string' => 'UTC',
         'gmt_offset'      => 0,
-        'rewrite_rules'   => [],
+        'rewrite_rules'       => [],
+        'permalink_structure' => '/%postname%/',
+        'home'                => 'https://example.test',
     ];
+    unset($GLOBALS['wp']);
     WpKitTestState::$currentTime   = '2024-01-02 03:04:05';
     WpKitTestState::$capabilities  = [];
     WpKitTestState::$sites         = [];
@@ -523,6 +534,11 @@ function wp_send_json($data, $status = null)
 function add_rewrite_rule($regex, $query, $position)
 {
     WpKitTestState::$rewriteRules[$regex] = compact('query', 'position');
+}
+
+function home_url($path = '')
+{
+    return rtrim((string) get_option('home'), '/') . '/' . ltrim($path, '/');
 }
 
 function flush_rewrite_rules()

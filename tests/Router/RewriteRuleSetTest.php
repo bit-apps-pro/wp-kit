@@ -43,7 +43,6 @@ final class RewriteRuleSetTest extends TestCase
 
         assertSameValue(
             [
-                '^landing/?$'                 => 'index.php?pagename=landing',
                 '^landing/entries/([^/]+)/?$' => 'index.php?pagename=landing&id=$matches[1]',
             ],
             $set->rules(),
@@ -61,6 +60,14 @@ final class RewriteRuleSetTest extends TestCase
         assertTest(isset($set->rules()['^landing/alpha/([^/]+)/?$']), 'first path lost its rule');
         assertTest(isset($set->rules()['^landing/beta/([^/]+)/?$']), 'second path lost its rule');
         assertSameValue(['a', 'b'], $set->queryVars(), 'query vars did not accumulate');
+    }
+
+    public function testEmptyPathRegistersOnlyThePageRootRule(): void
+    {
+        $set = new RewriteRuleSet('landing');
+        $set->addPath('/');
+
+        assertSameValue(['^landing/?$' => 'index.php?pagename=landing'], $set->rules(), 'empty path did not map to the page root');
     }
 
     public function testEmptySetHasNoRulesOrQueryVars(): void
