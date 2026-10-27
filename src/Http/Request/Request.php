@@ -143,7 +143,8 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
     {
         $type = (string) $this->header('Content-Type', '');
 
-        return stripos($type, self::APPLICATION_MEDIA_PREFIX) === 0
+        // Media types are case-insensitive (RFC 9110 §8.3.1).
+        return str_starts_with(strtolower($type), self::APPLICATION_MEDIA_PREFIX)
             ? substr($type, \strlen(self::APPLICATION_MEDIA_PREFIX))
             : $type;
     }
