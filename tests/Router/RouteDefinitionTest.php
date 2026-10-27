@@ -97,6 +97,58 @@ final class RouteDefinitionTest extends TestCase
         assertSameValue(['auth'], $route->getMiddleware(), 'group middleware was not inherited');
     }
 
+    public function testRouteDefinitionRouteAttributesInsideAGroupAreKept(): void
+    {
+        $router     = new Router('api', 'example', 'v1');
+        $permission = fn () => false;
+
+        Route::prefix('demo')->group(function () use ($permission) {
+            Route::permission($permission)->middleware('audit')->get('entries', fn () => 'ok');
+        });
+
+        $route = $router->getRoute(0);
+        assertSameValue('demo', $route->getRoutePrefix(), 'group prefix was lost');
+        assertSameValue($permission, $route->getPermissionCallback(), 'route permission inside a group was dropped');
+        assertSameValue(['audit'], $route->getMiddleware(), 'route middleware inside a group was dropped');
+    }
+
+    public function testRouteDefinitionNestedGroupsInheritFromTheirParent(): void
+    {
+        $router     = new Router('api', 'example', 'v1');
+        $permission = fn () => false;
+
+        Route::permission($permission)->prefix('admin')->middleware('auth')->group(function () {
+            Route::prefix('inner')->middleware('audit')->group(function () {
+                Route::get('nested', fn () => 'ok');
+            });
+            Route::get('sibling', fn () => 'ok');
+        });
+
+        $nested = $router->getRoute(0);
+        assertSameValue('admin/inner', $nested->getRoutePrefix(), 'nested prefix not joined to the parent');
+        assertSameValue($permission, $nested->getPermissionCallback(), 'nested group lost the parent permission');
+        assertSameValue(['auth', 'audit'], $nested->getMiddleware(), 'nested group lost the parent middleware');
+
+        $sibling = $router->getRoute(1);
+        assertSameValue('admin', $sibling->getRoutePrefix(), 'outer group not restored after a nested group');
+        assertSameValue($permission, $sibling->getPermissionCallback(), 'outer permission not restored after a nested group');
+    }
+
+    public function testRouteDefinitionGroupStateIsClearedWhenTheCallbackThrows(): void
+    {
+        $router = new Router('api', 'example', 'v1');
+
+        try {
+            Route::prefix('broken')->group(function () {
+                throw new \RuntimeException('boom');
+            });
+        } catch (\RuntimeException) {
+        }
+        Route::get('after', fn () => 'ok');
+
+        assertSameValue(null, $router->getRoute(0)->getRoutePrefix(), 'group leaked past a thrown callback');
+    }
+
     public function testRouteDefinitionPlaceholdersExposeRegexMetadata(): void
     {
         new Router('ajax', 'example', null);

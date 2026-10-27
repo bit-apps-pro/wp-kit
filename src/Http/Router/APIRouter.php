@@ -38,7 +38,7 @@ final class APIRouter extends WP_REST_Controller
             $args[] = [
                 'methods'             => $this->getMethod($method),
                 'callback'            => [$route, 'handleRequest'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => $route->getPermissionCallback(),
             ];
         }
 

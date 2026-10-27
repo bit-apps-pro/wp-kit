@@ -12,6 +12,8 @@ namespace BitApps\WPKit\Http\Router;
  * @method static RouteBase     isTokenIgnored()
  * @method static RouteBase     ignoreToken()
  * @method static RouteBase     getMiddleware()
+ * @method static RouteBase     permission(callable $callback)
+ * @method static RouteBase     getPermission()
  * @method static RouteBase     getRoutePrefix()
  * @method static RouteBase     group(Closure $callback)
  * @method static RouteBase     getRouter()
