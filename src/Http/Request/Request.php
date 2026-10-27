@@ -16,7 +16,10 @@ use WP_REST_Request;
 
 class Request extends Validator implements ArrayAccess, JsonSerializable
 {
+    use InteractsWithHeaders;
     use IpTool;
+
+    private const APPLICATION_MEDIA_PREFIX = 'application/';
 
     protected $rest;
 
@@ -27,6 +30,11 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
     protected $routeParams = [];
 
     protected $body = [];
+
+    /**
+     * Raw php://input, read at most once.
+     */
+    private ?string $_content = null;
 
     /**
      * Undocumented function.
@@ -98,14 +106,47 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
         return $this->body;
     }
 
-    public function method()
+    /**
+     * Returns the raw request body exactly as sent, e.g. for signature checks.
+     *
+     * @return string
+     */
+    public function content()
     {
-        return sanitize_text_field($_SERVER['REQUEST_METHOD']);
+        if (isset($this->rest)) {
+            return (string) $this->rest->get_body();
+        }
+
+        return $this->_content ??= (string) file_get_contents('php://input');
     }
 
+    /**
+     * Returns the sanitized, upper-cased HTTP method, or '' when the server omits it.
+     *
+     * @return string
+     */
+    public function method()
+    {
+        if (!isset($_SERVER['REQUEST_METHOD'])) {
+            return '';
+        }
+
+        return strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])));
+    }
+
+    /**
+     * Returns the sanitized Content-Type with a leading "application/" removed (e.g. "json").
+     *
+     * @return string
+     */
     public function contentType()
     {
-        return isset($_SERVER['CONTENT_TYPE']) ? ltrim($_SERVER['CONTENT_TYPE'], 'application/') : '';
+        $type = (string) $this->header('Content-Type', '');
+
+        // Media types are case-insensitive (RFC 9110 §8.3.1).
+        return str_starts_with(strtolower($type), self::APPLICATION_MEDIA_PREFIX)
+            ? substr($type, \strlen(self::APPLICATION_MEDIA_PREFIX))
+            : $type;
     }
 
     public function setApiRequest(WP_REST_Request $request)
@@ -246,7 +287,7 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
                 !str_contains($this->contentType(), 'form-data')
                 && !str_contains($this->contentType(), 'x-www-form-urlencoded')
             ) {
-                $this->body = JSON::maybeDecode(file_get_contents('php://input'), JsonConfig::decodeAsArray());
+                $this->body = JSON::maybeDecode($this->content(), JsonConfig::decodeAsArray());
             }
 
             if (!empty($_POST)) {

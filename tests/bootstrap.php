@@ -90,6 +90,14 @@ final class WpDieException extends RuntimeException
 {
 }
 
+if (!class_exists('WP')) {
+    /** Minimal WP: only the parsed request path the static router reads. */
+    class WP
+    {
+        public $request = '';
+    }
+}
+
 if (!class_exists('WP_REST_Request')) {
     class WP_REST_Request
     {
@@ -101,12 +109,28 @@ if (!class_exists('WP_REST_Request')) {
 
         private $route;
 
-        public function __construct($body = [], $query = [], $route = [], $json = [])
+        private $headers;
+
+        private $rawBody;
+
+        public function __construct($body = [], $query = [], $route = [], $json = [], $headers = [], $rawBody = '')
         {
-            $this->body  = $body;
-            $this->query = $query;
-            $this->route = $route;
-            $this->json  = $json;
+            $this->body    = $body;
+            $this->query   = $query;
+            $this->route   = $route;
+            $this->json    = $json;
+            $this->headers = $headers;
+            $this->rawBody = $rawBody;
+        }
+
+        public function get_body()
+        {
+            return $this->rawBody;
+        }
+
+        public function get_headers()
+        {
+            return $this->headers;
         }
 
         public function get_body_params()
@@ -214,8 +238,11 @@ function resetWpKitTestState()
         'time_format'     => 'H:i:s',
         'timezone_string' => 'UTC',
         'gmt_offset'      => 0,
-        'rewrite_rules'   => [],
+        'rewrite_rules'       => [],
+        'permalink_structure' => '/%postname%/',
+        'home'                => 'https://example.test',
     ];
+    unset($GLOBALS['wp']);
     WpKitTestState::$currentTime   = '2024-01-02 03:04:05';
     WpKitTestState::$capabilities  = [];
     WpKitTestState::$sites         = [];
@@ -297,9 +324,24 @@ function wp_ob_end_flush_all()
     }
 }
 
+/**
+ * Mirrors core _sanitize_text_fields(): strips tags, collapses whitespace, drops %XX octets.
+ */
 function sanitize_text_field($value)
 {
-    return $value;
+    if (\is_array($value) || \is_object($value)) {
+        return '';
+    }
+
+    $filtered = trim(preg_replace('/[\r\n\t ]+/', ' ', strip_tags((string) $value)));
+
+    $found = false;
+    while (preg_match('/%[a-f0-9]{2}/i', $filtered, $match)) {
+        $filtered = str_replace($match[0], '', $filtered);
+        $found    = true;
+    }
+
+    return $found ? trim(preg_replace('/ +/', ' ', $filtered)) : $filtered;
 }
 
 function sanitize_url($value)
@@ -492,6 +534,11 @@ function wp_send_json($data, $status = null)
 function add_rewrite_rule($regex, $query, $position)
 {
     WpKitTestState::$rewriteRules[$regex] = compact('query', 'position');
+}
+
+function home_url($path = '')
+{
+    return rtrim((string) get_option('home'), '/') . '/' . ltrim($path, '/');
 }
 
 function flush_rewrite_rules()
