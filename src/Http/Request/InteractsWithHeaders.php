@@ -19,7 +19,7 @@ trait InteractsWithHeaders
      *
      * @return array<string, string>
      */
-    public function headers()
+    public function headers(): array
     {
         return array_map('sanitize_text_field', $this->rawHeaders());
     }
@@ -51,7 +51,7 @@ trait InteractsWithHeaders
      *
      * @return bool
      */
-    public function hasHeader(string $name)
+    public function hasHeader(string $name): bool
     {
         return \array_key_exists(self::canonicalHeaderName($name), $this->rawHeaders());
     }
@@ -64,7 +64,7 @@ trait InteractsWithHeaders
     private function rawHeaders(): array
     {
         if (isset($this->rest) && $this->rest instanceof WP_REST_Request) {
-            return array_map(static fn ($values) => implode(', ', (array) $values), (array) $this->rest->get_headers());
+            return array_map(static fn ($values): string => implode(', ', (array) $values), (array) $this->rest->get_headers());
         }
 
         return $this->serverHeaders();

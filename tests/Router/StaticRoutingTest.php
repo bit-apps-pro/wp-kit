@@ -558,13 +558,109 @@ final class StaticRoutingTest extends TestCase
         assertTest(isset(WpKitTestState::$rewriteRules['^landing/entries/([^/]+)/?$']), 'route rule missing next to the root rule');
     }
 
-    private function makeTransport(array $routes = []): StaticRouter
+    public function testRootRouteMatchesTheParsedPageRoot(): void
+    {
+        $this->makeTransport(['/' => static fn () => 'home']);
+        $this->setParsedRequest('landing');
+
+        do_action('template_redirect');
+
+        assertSameValue('page-home', apply_filters('the_content', 'page-'), 'root route did not match the parsed page root');
+    }
+
+    public function testRootRouteMatchesThePageRootOnSubdirectoryInstalls(): void
+    {
+        $this->makeTransport(['/' => static fn () => 'home']);
+        WpKitTestState::$options['home'] = 'https://example.test/blog';
+        $_SERVER['REQUEST_URI']          = '/blog/landing';
+
+        do_action('template_redirect');
+
+        assertSameValue('page-home', apply_filters('the_content', 'page-'), 'root route did not match on a subdirectory install');
+    }
+
+    public function testRootRouteMatchesThePageRootFromTheRequestUri(): void
+    {
+        $this->makeTransport(['/' => static fn () => 'home']);
+        $_SERVER['REQUEST_URI'] = '/landing';
+
+        do_action('template_redirect');
+
+        assertSameValue('page-home', apply_filters('the_content', 'page-'), 'root route did not match a page root without a trailing slash');
+    }
+
+    public function testRootRouteMatchesThePageRootFromATrailingSlashRequestUri(): void
+    {
+        $this->makeTransport(['/' => static fn () => 'home']);
+        $_SERVER['REQUEST_URI'] = '/landing/?preview=1';
+
+        do_action('template_redirect');
+
+        assertSameValue('page-home', apply_filters('the_content', 'page-'), 'root route did not match a page root with a trailing slash');
+    }
+
+    public function testRootRouteDoesNotMatchDeeperPaths(): void
+    {
+        $this->makeTransport(['/' => static fn () => 'home']);
+        $this->setParsedRequest('landing/entries/42');
+
+        do_action('template_redirect');
+
+        assertTest(!isset(WpKitTestState::$filters['the_content']), 'root route matched a deeper path');
+    }
+
+    public function testRootRouteDoesNotMatchAPageSharingItsNamePrefix(): void
+    {
+        $this->makeTransport(['/' => static fn () => 'home']);
+        $this->setParsedRequest('landing-archive');
+
+        do_action('template_redirect');
+
+        assertTest(!isset(WpKitTestState::$filters['the_content']), 'root route matched another page sharing its name prefix');
+    }
+
+    public function testRootRouteDoesNotShadowSiblingRoutes(): void
+    {
+        $this->makeTransport([
+            '/'         => static fn () => 'home',
+            'user/{id}' => static fn ($id) => 'user ' . $id,
+        ]);
+        $this->setParsedRequest('landing/user/5');
+
+        do_action('template_redirect');
+
+        assertSameValue('page-user 5', apply_filters('the_content', 'page-'), 'root route shadowed a sibling route');
+    }
+
+    public function testEmptyPathInsideAPrefixMatchesThePrefixRoot(): void
+    {
+        $this->makeTransport(['/' => static fn () => 'account'], 'account');
+        $this->setParsedRequest('landing/account');
+
+        do_action('template_redirect');
+
+        assertSameValue('page-account', apply_filters('the_content', 'page-'), 'empty path inside a prefix did not match the prefix root');
+    }
+
+    /**
+     * Registers the given GET routes, optionally under a prefix, on a static router for the landing page.
+     */
+    private function makeTransport(array $routes = [], ?string $prefix = null): StaticRouter
     {
         new Router('static', 'landing', null);
         foreach ($routes as $path => $action) {
-            (new RouteBase())->get($path, $action);
+            (new RouteBase())->prefix($prefix)->get($path, $action);
         }
 
         return new StaticRouter('landing', 'plugin_activate', 'plugin_deactivate');
+    }
+
+    /**
+     * Sets the parsed WP request path that the router reads from the global WP object.
+     */
+    private function setParsedRequest(string $path): void
+    {
+        $GLOBALS['wp']          = new \WP();
+        $GLOBALS['wp']->request = $path;
     }
 }

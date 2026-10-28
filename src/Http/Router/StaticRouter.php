@@ -215,12 +215,20 @@ class StaticRouter
         $prefix = trim((string) $route->getRoutePrefix(), '/');
         $path   = trim((string) $route->getPath(), '/');
 
-        return $prefix === '' ? $path : $prefix . '/' . $path;
+        return self::joinPath($prefix, $path);
+    }
+
+    /**
+     * Joins path segments with '/', skipping empty ones so a root route leaves no trailing slash.
+     */
+    private static function joinPath(string ...$segments): string
+    {
+        return implode('/', array_filter($segments, static fn (string $segment): bool => $segment !== ''));
     }
 
     private function isRouteMatched(RouteRegister $route, string $requestPath): bool
     {
-        $path     = $this->pageName . '/' . $this->routePath($route);
+        $path     = self::joinPath($this->pageName, $this->routePath($route));
         $compiled = RoutePattern::compile($path);
         $pattern  = $compiled === null ? preg_quote($path, '~') : $compiled['regex'];
 

@@ -526,7 +526,7 @@ final class RouteRegister
         return $reflectionFunction->invoke(...$params);
     }
 
-    private function processParameters($reflectionParams, array $params = []): array
+    private function processParameters(array $reflectionParams, array $params = []): array
     {
         $requestParams = [];
         foreach ($reflectionParams as $param) {
