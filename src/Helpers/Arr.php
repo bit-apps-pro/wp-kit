@@ -591,8 +591,8 @@ class Arr
     /**
      * Shuffle the given array and return the result.
      *
-     * @param array    $array
-     * @param null|int $seed
+     * @param array           $array
+     * @param null|int|string $seed
      *
      * @return array
      */
@@ -600,13 +600,11 @@ class Arr
     {
         if (\is_null($seed)) {
             shuffle($array);
-        } else {
-            mt_srand($seed);
-            shuffle($array);
-            mt_srand();
+
+            return $array;
         }
 
-        return $array;
+        return self::seededShuffle(array_values($array), (string) $seed);
     }
 
     /**
@@ -780,5 +778,21 @@ class Arr
         $key = \is_null($key) || \is_array($key) ? $key : explode('.', $key);
 
         return [$value, $key];
+    }
+
+    /**
+     * Orders values by a hash of seed, length and position: repeatable per seed without reseeding the global mt_rand state.
+     */
+    private static function seededShuffle(array $values, string $seed): array
+    {
+        $length  = \count($values);
+        $weights = [];
+        foreach (array_keys($values) as $position) {
+            $weights[$position] = sha1($seed . ':' . $length . ':' . $position);
+        }
+
+        asort($weights, SORT_STRING);
+
+        return array_map(static fn (int $position) => $values[$position], array_keys($weights));
     }
 }

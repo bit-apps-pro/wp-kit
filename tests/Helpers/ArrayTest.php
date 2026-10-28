@@ -149,4 +149,59 @@ final class ArrayTest extends TestCase
             'invalid random selection was accepted',
         );
     }
+
+    /**
+     * A seeded shuffle is a permutation that repeats for the same seed and varies across seeds.
+     */
+    public function testArrayHelperSeededShuffleIsARepeatablePermutation(): void
+    {
+        $values   = range(1, 20);
+        $shuffled = Arr::shuffle($values, 42);
+        $sorted   = $shuffled;
+        sort($sorted);
+
+        assertSameValue($shuffled, Arr::shuffle($values, 42), 'same seed produced a different order');
+        assertSameValue($values, $sorted, 'seeded shuffle lost or duplicated values');
+        assertTest($shuffled !== Arr::shuffle($values, 7), 'different seeds produced the same order');
+    }
+
+    /**
+     * A seeded shuffle leaves the global mt_rand sequence untouched.
+     */
+    public function testArrayHelperSeededShuffleLeavesTheGlobalRandomSequenceAlone(): void
+    {
+        mt_srand(1234);
+        $expected = mt_rand();
+
+        mt_srand(1234);
+        Arr::shuffle(range(1, 10), 42);
+
+        assertSameValue($expected, mt_rand(), 'seeded shuffle reseeded the global mt_rand state');
+    }
+
+    /**
+     * Non-numeric seeds keep their identity instead of all collapsing to one order.
+     */
+    public function testArrayHelperSeededShuffleDistinguishesNonNumericSeeds(): void
+    {
+        $values = range(1, 20);
+
+        assertTest(Arr::shuffle($values, 'user-5') !== Arr::shuffle($values, 'user-6'), 'distinct string seeds produced the same order');
+    }
+
+    /**
+     * The same seed does not fix the relative order of leading items across array lengths.
+     */
+    public function testArrayHelperSeededShuffleOrderDependsOnTheArrayLength(): void
+    {
+        $correlated = 0;
+        foreach (range(1, 10) as $seed) {
+            $short = Arr::shuffle(range(1, 5), $seed);
+            $long  = array_values(array_filter(Arr::shuffle(range(1, 20), $seed), static fn (int $value): bool => $value <= 5));
+
+            $correlated += (int) ($short === $long);
+        }
+
+        assertTest($correlated < 10, 'every seed kept the leading items in the same relative order across lengths');
+    }
 }
