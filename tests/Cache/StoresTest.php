@@ -234,6 +234,16 @@ final class StoresTest extends TestCase
         $this->assertSame('v', $store->get('k'));
     }
 
+    /**
+     * A directory WordPress refuses to create (core rejects '../') fails loudly instead of silently disabling the cache.
+     */
+    public function testFileStoreThrowsWhenItCannotCreateItsDirectory(): void
+    {
+        $this->expectException(\RuntimeException::class);
+
+        new FileStore($this->makeFileStoreDirectory() . '/../cache');
+    }
+
     public function testFileStoreFlushIsPrefixScoped(): void
     {
         $baseDir = $this->makeFileStoreDirectory();

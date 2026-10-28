@@ -354,6 +354,28 @@ function wp_unslash($value)
     return $value;
 }
 
+/**
+ * Mirrors core wp_mkdir_p(): refuses '../' traversal, else creates the tree and reports whether it exists.
+ */
+function wp_mkdir_p($target)
+{
+    if (str_contains($target, '../') || str_contains($target, '..' . DIRECTORY_SEPARATOR)) {
+        return false;
+    }
+
+    return is_dir($target) || @mkdir($target, 0755, true) || is_dir($target);
+}
+
+/**
+ * Mirrors core wp_delete_file(): unlinks the path after the wp_delete_file filter.
+ */
+function wp_delete_file($file)
+{
+    $delete = apply_filters('wp_delete_file', $file);
+
+    return !empty($delete) && @unlink($delete);
+}
+
 function wp_parse_args($args, $defaults = [])
 {
     return array_merge($defaults, (array) $args);

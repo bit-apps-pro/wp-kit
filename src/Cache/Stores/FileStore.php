@@ -3,6 +3,7 @@
 namespace BitApps\WPKit\Cache\Stores;
 
 use BitApps\WPKit\Cache\Contracts\Store;
+use RuntimeException;
 
 /**
  * Store backed by serialized files on disk; each entry lives in its own file named by a hash of the key.
@@ -19,6 +20,8 @@ final class FileStore implements Store
     /**
      * @param null|callable $clock returns the current unix timestamp; defaults to time() but is
      *                             injectable so tests can advance it deterministically (see M4)
+     *
+     * @throws RuntimeException when the directory is missing and WordPress cannot create it (e.g. a '../' path)
      */
     public function __construct(string $directory, string $prefix = '', ?callable $clock = null)
     {
@@ -27,8 +30,8 @@ final class FileStore implements Store
         $this->directory = rtrim($directory, '/\\') . '/' . sha1($prefix);
         $this->clock     = $clock ?? 'time';
 
-        if (!is_dir($this->directory)) {
-            mkdir($this->directory, 0755, true);
+        if (!is_dir($this->directory) && !wp_mkdir_p($this->directory)) {
+            throw new RuntimeException("Cache directory [{$this->directory}] could not be created.");
         }
     }
 
@@ -81,7 +84,9 @@ final class FileStore implements Store
             return false;
         }
 
-        return unlink($path);
+        wp_delete_file($path);
+
+        return !is_file($path);
     }
 
     /**
@@ -91,7 +96,7 @@ final class FileStore implements Store
     {
         foreach (glob($this->directory . '/*') ?: [] as $file) {
             if (is_file($file)) {
-                unlink($file);
+                wp_delete_file($file);
             }
         }
 
@@ -170,8 +175,9 @@ final class FileStore implements Store
             return false;
         }
 
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- WP_Filesystem::move() is not an atomic replace.
         if (!rename($tmp, $path)) {
-            unlink($tmp);
+            wp_delete_file($tmp);
 
             return false;
         }
