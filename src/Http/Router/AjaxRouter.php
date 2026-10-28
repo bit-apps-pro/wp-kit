@@ -24,8 +24,8 @@ final class AjaxRouter
 
     public function addRoute(RouteRegister $route): void
     {
-        $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field($_SERVER['REQUEST_METHOD']) : '';
-        $action        = isset($_REQUEST['action']) ? sanitize_text_field($_REQUEST['action']) : '';
+        $requestMethod = self::requestMethod();
+        $action        = self::requestAction();
 
         if (!str_contains($action, $route->getRouter()->getAjaxPrefix())
             || !\in_array(strtoupper($requestMethod), $route->getMethods())
@@ -48,10 +48,7 @@ final class AjaxRouter
 
     public function currentRouteName(): string
     {
-        $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field($_SERVER['REQUEST_METHOD']) : '';
-        $action        = isset($_REQUEST['action']) ? sanitize_text_field($_REQUEST['action']) : '';
-
-        return $requestMethod . $action;
+        return self::requestMethod() . self::requestAction();
     }
 
     /**
@@ -85,5 +82,22 @@ final class AjaxRouter
         }
 
         return $matchedRoutes[0] === $requestPath;
+    }
+
+    /**
+     * Sanitized HTTP method of the current request, or '' when absent.
+     */
+    private static function requestMethod(): string
+    {
+        return isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
+    }
+
+    /**
+     * Sanitized admin-ajax action of the current request, or '' when absent.
+     */
+    private static function requestAction(): string
+    {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing on the action only; handlers verify nonces.
+        return isset($_REQUEST['action']) ? sanitize_text_field(wp_unslash($_REQUEST['action'])) : '';
     }
 }

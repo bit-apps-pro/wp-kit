@@ -26,14 +26,13 @@ final class ClientIpResolver
      */
     public static function checkIP(): string|false
     {
-        $remoteAddress = self::normalizeIP($_SERVER['REMOTE_ADDR'] ?? '');
+        $remoteAddress = self::normalizeIP(self::serverValue('REMOTE_ADDR'));
         if ($remoteAddress === false || !self::isTrustedProxy($remoteAddress)) {
             return $remoteAddress;
         }
 
-        $forwardedFor = isset($_SERVER['HTTP_X_FORWARDED_FOR'])
-            ? explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR'])
-            : [];
+        $forwardedHeader = self::serverValue('HTTP_X_FORWARDED_FOR');
+        $forwardedFor    = $forwardedHeader === '' ? [] : explode(',', $forwardedHeader);
 
         for ($index = \count($forwardedFor) - 1; $index >= 0; --$index) {
             $forwardedAddress = self::normalizeIP($forwardedFor[$index]);
@@ -49,9 +48,17 @@ final class ClientIpResolver
         return $remoteAddress;
     }
 
-    private static function normalizeIP($ip): string|false
+    /**
+     * Sanitized $_SERVER entry, or '' when absent.
+     */
+    private static function serverValue(string $key): string
     {
-        $ip = trim((string) $ip, " \t\n\r\0\x0B\"");
+        return isset($_SERVER[$key]) ? sanitize_text_field(wp_unslash($_SERVER[$key])) : '';
+    }
+
+    private static function normalizeIP(string $ip): string|false
+    {
+        $ip = trim($ip, " \t\n\r\0\x0B\"");
 
         if (preg_match('/^\[([^\]]+)\](?::\d+)?$/', $ip, $matches)) {
             $ip = $matches[1];

@@ -45,7 +45,7 @@ final class UserAgent
             return '';
         }
 
-        $userAgent = wp_kses($_SERVER['HTTP_USER_AGENT'], []);
+        $userAgent = wp_kses(wp_unslash($_SERVER['HTTP_USER_AGENT']), []);
 
         return self::getBrowserName($userAgent) . '|' . self::getOS($userAgent);
     }

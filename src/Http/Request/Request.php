@@ -167,6 +167,7 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
      */
     public function files()
     {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- request wrapper; nonce checks belong to route middleware.
         return $_FILES ?? [];
     }
 
@@ -261,8 +262,9 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
     {
         if (!empty($params)) {
             $this->queryParams = $params;
-        } elseif (isset($_GET)) {
-            $this->queryParams = wp_unslash($_GET);
+        } else {
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- request wrapper; nonce checks belong to route middleware.
+            $this->queryParams = (array) wp_unslash($_GET ?? []);
         }
     }
 
@@ -290,8 +292,10 @@ class Request extends Validator implements ArrayAccess, JsonSerializable
                 $this->body = JSON::maybeDecode($this->content(), JsonConfig::decodeAsArray());
             }
 
-            if (!empty($_POST)) {
-                $this->body = (array) $this->body + (array) wp_unslash($_POST);
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- request wrapper; nonce checks belong to route middleware.
+            $post = (array) wp_unslash($_POST ?? []);
+            if (!empty($post)) {
+                $this->body = (array) $this->body + $post;
             }
         }
     }
