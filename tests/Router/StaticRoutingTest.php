@@ -523,6 +523,18 @@ final class StaticRoutingTest extends TestCase
         assertSameValue(2, WpKitTestState::$rewriteFlushes, 'one page\'s retry window suppressed another page\'s flush');
     }
 
+    /**
+     * The flush retry transient is keyed by the page name.
+     */
+    public function testRetryWindowTransientIsPrefixedWithThePageName(): void
+    {
+        $this->makeTransport(['entries/{id}' => static fn () => 'x']);
+
+        do_action('init');
+
+        assertSameValue(['landing_rewrite_flush_retry'], array_keys(WpKitTestState::$transients), 'retry transient is not keyed by the page name');
+    }
+
     public function testActivationFlushesEvenInsideTheRetryWindow(): void
     {
         $this->makeTransport(['entries/{id}' => static fn () => 'x']);

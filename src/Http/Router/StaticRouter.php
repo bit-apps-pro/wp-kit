@@ -17,7 +17,10 @@ class StaticRouter
      */
     private const FLUSH_RETRY_SECONDS = 300;
 
-    private const FLUSH_RETRY_TRANSIENT_PREFIX = 'wpkit_static_flush_';
+    /**
+     * Appended to the page name, so the transient carries the consumer's own prefix rather than a shared one.
+     */
+    private const FLUSH_RETRY_TRANSIENT_SUFFIX = '_rewrite_flush_retry';
 
     private Router $router;
 
@@ -165,7 +168,7 @@ class StaticRouter
             return;
         }
 
-        $retryKey = self::FLUSH_RETRY_TRANSIENT_PREFIX . $this->pageName;
+        $retryKey = $this->pageName . self::FLUSH_RETRY_TRANSIENT_SUFFIX;
         if (get_transient($retryKey) !== false) {
             return;
         }
